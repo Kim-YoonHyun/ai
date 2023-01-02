@@ -3,6 +3,8 @@ import numpy as np
 import os
 import sys
 import argparse
+import time
+import copy
 from tqdm import tqdm
 
 # model
@@ -16,17 +18,12 @@ from torchsummary import summary
 from sklearn.utils import shuffle
 
 # my local module
-from mylocalmodule.utils import train
-from mylocalmodule.utils import get_batch
-from mylocalmodule.utils import normalize_3D
-from mylocalmodule.efficientnetutils import efficientnet
+from mylocalmodule import utils as lutils
+from mylocalmodule import efficientnetutils as eutils
 
 # my global module
 sys.path.append('/home/kimyh/ai')
-from myglobalmodule.utils import save_json
-from myglobalmodule.utils import make_acc_df
-from myglobalmodule.utils import envs_setting
-from myglobalmodule.utils import get_device
+from myglobalmodule import utils as gutils
 
 
 def make_dataset(dataset_path, class_dict, random_seed):
@@ -63,8 +60,11 @@ def make_dataset(dataset_path, class_dict, random_seed):
     from tqdm import tqdm
     import numpy as np
     
+    # 데이터 + label 리스트 초기화
     train_data_with_label = []
     test_data_with_label = []
+
+    # 경로에서 데이터 불러오기
     for tp in ['train_data', 'test_data']:
         class_list = os.listdir(f'{dataset_path}/{tp}')
         for class_name in class_list:
@@ -79,17 +79,23 @@ def make_dataset(dataset_path, class_dict, random_seed):
                 if tp == 'test_data':
                     test_data_with_label.append(img)
     
-    # train & val data
+    # 데이터 셔플
     train_data_with_label = np.array(train_data_with_label)
     train_data_with_label_shuffled = shuffle(train_data_with_label, random_state=random_seed)
+
+    # 라벨데이터를 제외한 데이터만 인덱싱
     train_data = train_data_with_label_shuffled[:, :, :, :-1]
+
+    # 학습데이터 비율 값 계산
     train_num = int(len(train_data)*0.8)
 
+    # 학습 라벨 인덱싱
     train_label = []
     for i in train_data_with_label_shuffled[:, :, :, -1:]:
         train_label.append(int(i[0][0][0]))
     train_label = np.array(train_label)
 
+    # val data split
     val_data = train_data[train_num:, :, :, :]
     val_label = train_label[train_num:]
     train_data = train_data[:train_num, :, :, :]
@@ -108,6 +114,197 @@ def make_dataset(dataset_path, class_dict, random_seed):
     return train_data, train_label, val_data, val_label, test_data, test_label
 
 
+def get_lr(opt):
+    for param_group in opt.param_groups:
+        return param_group['lr']
+
+
+def get_output(model, loss_function, data, label, device, sanity_check=False, optimizer=None):
+    """
+    모델에 데이터를 입력하여 얻어낸 결과를 통해 loss 를 구하고
+    model weight 를 학습시키는 코드.
+    optimizer 유무를 통해 validation 에 활용 가능
+
+    parameters
+    ----------
+    model: torch model
+        학습에 활용할 네트워크 모델
+
+    loss_function: torch.nn.modules.loss.<function>
+        학습에 활용할 loss function
+
+    data: numpy array
+        batch 화 된 학습 데이터. (batch_lenght, batch_size, ct_image_page_number, img_size, img_size)
+
+    label: numpy array
+        batch 화 된 학습 라벨. (batch_length, batch_size)
+
+    device: cuda or cpu
+        학습을 진행할 장치
+
+    optimizer: torch.optim.<optimizer>
+        학습에 활용할 optimizer
+
+    returns
+    -------
+    loss: float
+        데이터 입력후 계산되어지는 loss 값    
+    """
+    # loss 변수 초기화
+    running_loss = 0.0
+    len_data = 0
+    
+    # 배치별로 결과 계산
+    for xb, yb in zip(data, label):
+        xb = torch.Tensor(xb)
+        yb = torch.Tensor(yb)
+        xb = xb.to(device)
+        yb = yb.to(device)
+        yb = yb.type(torch.int64)
+        
+        output = model(xb)
+        loss_b = loss_function(output, yb)
+        
+        if optimizer:
+            optimizer.zero_grad()
+            loss_b.backward()
+            optimizer.step()
+        
+        loss_b = loss_b.item()
+        running_loss += loss_b
+        len_data += len(xb)
+
+        if sanity_check is True:
+            break
+
+    # loss 계산
+    loss = running_loss/len_data
+    return loss
+
+
+def train(model, params, device):
+    '''
+    efficient net 을 통해 3d image 를 학습시키는 코드
+
+    parameters
+    ----------
+    model: torch model
+        학습을 진행할 네트워크 모델
+
+    params: dictionary
+        학습에 활용할 변수를 모은 dictionary
+        ----------
+        epochs: int
+            학습 에포크 값
+
+        loss_function: torch.nn.modules.loss.<function>
+            학습에 활용할 loss function
+
+        optimizer: torch.optim.<optimizer>
+            학습에 활용할 optimizer
+
+        train_data: numpy array
+            학습용 데이터. (data_n, ct_image_page_number, img_size, img_size)
+
+        train_label: numpy array
+            학습 데이터 라벨. (data_n, )
+
+        val_data: numpy array
+            학습시 validation 용 데이터. (data_n, ct_image_page_number, img_size, img_size)
+
+        val_label: numpy array
+            학습 validation 라벨. (data_n, )
+
+        batch_size: int
+            학습 batch
+
+        lr_scheduler: torch.optim.lr_scheduler.<scheduler>
+            learning rate 를 조정할 scheduler
+        
+        model_save_path: str
+            모델 및 결과를 저장할 폴더 경로(자동생성)
+    
+    device: cuda or cpu
+        학습을 진행할 장치
+
+    returns
+    -------
+    model: pytorch model
+        최적의 학습 weigth가 적용된 학습 모델
+    
+    history: json
+        각 epoch 별 학습 결과 및 최적의 결과값
+    '''
+
+    # 변수 지정
+    epochs = params['epochs']
+    loss_function = params['loss_function']
+    optimizer = params['optimizer']
+    train_data = params['train_data']
+    train_label = params['train_label']
+    val_data = params['val_data']
+    val_label = params['val_label']
+    batch_size = params['batch_size']
+    lr_scheduler = params['lr_scheduler']
+    model_save_path = params['model_save_path']
+
+    # 초기 bset loss 값 설정(무한대 값)
+    best_loss = float('inf')
+
+    # history dict 초기화
+    history = {'best':{'epoch':0, 'loss':0}}
+    start_time = time.time()
+    
+    # batch 분배
+    train_data_b = lutils.get_batch(batch_size, train_data)
+    train_label_b = lutils.get_batch(batch_size, train_label)
+    val_data_b = lutils.get_batch(batch_size, val_data)
+    val_label_b = lutils.get_batch(batch_size, val_label)
+
+    # epoch 진행
+    for epoch in range(epochs):
+        current_lr = get_lr(optimizer)
+        print(f'Epoch {epoch + 1}/{epochs}, current lr={current_lr:.4f}')
+        history[f'epoch {epoch+1}'] = {'train_loss':0, 'val_loss':0}
+
+        # 학습
+        model.train()
+        train_loss = get_output(model, loss_function, train_data_b, train_label_b, device, optimizer)
+
+        # validation
+        model.eval()
+        with torch.no_grad():
+            val_loss = get_output(model, loss_function, val_data_b, val_label_b, device)
+
+        # 최적의 epoch, loss, weight 저장
+        if val_loss < best_loss:
+            best_epoch = epoch + 1
+            best_loss = val_loss
+            best_model_wts = copy.deepcopy(model.state_dict())
+            history['best']['epoch'] = best_epoch
+            history['best']['loss'] = best_loss
+        
+        # learning rate 감소(조건부)
+        lr_scheduler.step(val_loss)
+        if current_lr != get_lr(optimizer):
+            print('Loading best model weights!')
+            model.load_state_dict(best_model_wts)
+
+        # 결과 표시 및 이력 저장
+        print(f'train loss: {train_loss:.6f}, val loss: {val_loss:.6f}, time: {(time.time()-start_time)/60:.4f} min')
+        print('-'*10)
+        history[f'epoch {epoch+1}']['train_loss'] = train_loss
+        history[f'epoch {epoch+1}']['val_loss'] = train_loss
+
+    # 최적의 모델 저장
+    print(f'best: {best_epoch}')
+    model.load_state_dict(best_model_wts)
+    gutils.createfolder(model_save_path)
+    torch.save(model.state_dict(), f'{model_save_path}/batch{batch_size}_epoch{str(best_epoch).zfill(4)}.pt')
+
+    return model, history
+
+
 def main():
     # parsing
     parser = argparse.ArgumentParser()
@@ -115,11 +312,11 @@ def main():
     parser.add_argument('phase', help='project phase')   
     parser.add_argument('dataset_name', help='dataset for training')
     parser.add_argument('--network', default='efficientnet', help='training network')
-    parser.add_argument('--width_coef', type=float, default=1.5, help='model width')
-    parser.add_argument('--depth_coef', type=float, default=1.7, help='model depth')
-    parser.add_argument('--scale', type=float, default=1.5, help='image scale')
+    parser.add_argument('--width_coef', type=float, default=2.0, help='model width')
+    parser.add_argument('--depth_coef', type=float, default=2.0, help='model depth')
+    parser.add_argument('--scale', type=float, default=2.0, help='image scale')
     parser.add_argument('--random_seed', type=int, default=42, help='random seed / default=42')
-    parser.add_argument('--epochs', type=int, default=150, help='training epochs')
+    parser.add_argument('--epochs', type=int, default=250, help='training epochs')
     parser.add_argument('--batch_size', type=int, default=8, help='data batch size')
     parser.add_argument('--initial_learning_rate', type=float, default=0.01, help='training learning rate')
     parser.add_argument('--lr_descending_rate', type=float, default=0.7, help='learning rate descending rate')
@@ -128,7 +325,7 @@ def main():
     args = parser.parse_args()
 
     # environmet setting
-    envs_setting(args.random_seed)
+    gutils.envs_setting(args.random_seed)
 
     # class dictionary
     class_dict = {'AML':0, 'else':1}
@@ -145,18 +342,18 @@ def main():
     # normalize
     if args.normalize:
         print('\n>>> dataset_normalize...')
-        norm_train_data = normalize_3D(train_data)
-        norm_val_data = normalize_3D(val_data)
-        norm_test_data = normalize_3D(test_data)
+        norm_train_data = lutils.normalize_3D(train_data)
+        norm_val_data = lutils.normalize_3D(val_data)
+        norm_test_data = lutils.normalize_3D(test_data)
         model_save_path = f'{args.root_path}/{args.phase}/norm_{args.dataset_name}_model/{args.network}_w{args.width_coef}_d{args.width_coef}_s{args.scale}'
     else:
         model_save_path = f'{args.root_path}/{args.phase}/{args.dataset_name}_model/{args.network}_w{args.width_coef}_d{args.width_coef}_s{args.scale}'
 
     # cuda gpu select
-    device = get_device(1)
+    device = gutils.get_device(1)
 
     # model
-    model = efficientnet(initial_channel=96, 
+    model = eutils.efficientnet(initial_channel=96, 
                          num_classes=num_classes, 
                          width_coef=args.width_coef, 
                          depth_coef=args.depth_coef, 
@@ -191,8 +388,8 @@ def main():
     trained_model, train_history = train(model, train_variable, device)
 
     print('\n>>> test...')
-    test_data_b = get_batch(args.batch_size, norm_test_data)
-    test_label_b = get_batch(args.batch_size, test_label)
+    test_data_b = lutils.get_batch(args.batch_size, norm_test_data)
+    test_label_b = lutils.get_batch(args.batch_size, test_label)
     trained_model.eval()
     with torch.no_grad():
         test_pred_label = []
@@ -210,16 +407,15 @@ def main():
 
     # save train history
     best_model_name = f'batch{args.batch_size}_epoch{str(train_history["best"]["epoch"]).zfill(4)}'
-    save_json(save_path=f'{model_save_path}/{best_model_name}_train_history.json', data_for_save=train_history)
-    
+        
     # save acc df
-    acc_df = make_acc_df(class_list=class_list, 
+    confusion_matrix = gutils.make_confusion_matrix(class_list=class_list, 
                          true=test_label, 
                          pred=test_pred_label, 
                          save=f'{model_save_path}/{best_model_name}_test_result.csv')
 
     print('\n')
-    print(acc_df)
+    print(confusion_matrix)
 
 
 # check
@@ -275,3 +471,4 @@ if __name__ == '__main__':
     train_point_cloud = np.array(train_point_cloud)
     for i in train_point_cloud:
         print(i.shape)
+        

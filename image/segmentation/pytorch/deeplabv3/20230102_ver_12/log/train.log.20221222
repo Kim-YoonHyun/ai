@@ -1,0 +1,36 @@
+2022-12-22 13:29:45,052 level:INFO main.py line 80 >>> dataset_info 불러오기
+2022-12-22 13:29:45,053 level:INFO main.py line 92 >>> class_info 저장
+2022-12-22 13:29:45,054 level:INFO main.py line 97 >>> 학습용 데이터 로더 생성
+2022-12-22 13:29:45,056 level:INFO main.py line 109 >>> 검증용 데이터 로더 생성
+2022-12-22 13:29:45,056 level:INFO main.py line 122 >>> gpu 선택
+2022-12-22 13:29:45,075 level:INFO main.py line 124 device: cuda
+2022-12-22 13:29:45,075 level:INFO main.py line 126 >>> model 불러오기
+2022-12-22 13:29:51,525 level:INFO main.py line 135 >>> optimizer 생성
+2022-12-22 13:29:51,526 level:INFO main.py line 143 >>> loss function 생성
+2022-12-22 13:29:51,527 level:INFO main.py line 146 >>> scheduler 생성
+2022-12-22 13:29:51,527 level:INFO main.py line 162 >>> 재학습 적용
+2022-12-22 13:29:52,828 level:INFO main.py line 169 >>> 학습 시작
+2022-12-22 13:39:47,017 level:INFO main.py line 80 >>> dataset_info 불러오기
+2022-12-22 13:39:47,017 level:INFO main.py line 92 >>> class_info 저장
+2022-12-22 13:39:47,018 level:INFO main.py line 97 >>> 학습용 데이터 로더 생성
+2022-12-22 13:39:47,019 level:INFO main.py line 109 >>> 검증용 데이터 로더 생성
+2022-12-22 13:39:47,020 level:INFO main.py line 122 >>> gpu 선택
+2022-12-22 13:39:47,033 level:INFO main.py line 124 device: cuda
+2022-12-22 13:39:47,033 level:INFO main.py line 126 >>> model 불러오기
+2022-12-22 13:39:52,341 level:INFO main.py line 135 >>> optimizer 생성
+2022-12-22 13:39:52,343 level:INFO main.py line 143 >>> loss function 생성
+2022-12-22 13:39:52,343 level:INFO main.py line 146 >>> scheduler 생성
+2022-12-22 13:39:52,343 level:INFO main.py line 162 >>> 재학습 적용
+2022-12-22 13:39:53,659 level:INFO main.py line 169 >>> 학습 시작
+2022-12-22 18:58:46,127 level:INFO main.py line 80 >>> dataset_info 불러오기
+2022-12-22 18:58:46,127 level:INFO main.py line 92 >>> class_info 저장
+2022-12-22 18:58:46,128 level:INFO main.py line 97 >>> 학습용 데이터 로더 생성
+2022-12-22 18:58:46,129 level:INFO main.py line 109 >>> 검증용 데이터 로더 생성
+2022-12-22 18:58:46,130 level:INFO main.py line 122 >>> gpu 선택
+2022-12-22 18:58:46,160 level:INFO main.py line 124 device: cuda
+2022-12-22 18:58:46,160 level:INFO main.py line 126 >>> model 불러오기
+2022-12-22 18:58:50,226 level:INFO main.py line 135 >>> optimizer 생성
+2022-12-22 18:58:50,228 level:INFO main.py line 143 >>> loss function 생성
+2022-12-22 18:58:50,228 level:INFO main.py line 146 >>> scheduler 생성
+2022-12-22 18:58:50,228 level:INFO main.py line 162 >>> 재학습 적용
+2022-12-22 18:58:50,503 level:INFO main.py line 169 >>> 학습 시작

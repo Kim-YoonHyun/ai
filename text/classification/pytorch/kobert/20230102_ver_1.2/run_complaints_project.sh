@@ -1,0 +1,26 @@
+python main.py \
+    --root_path=/home/kimyh/python/project/complaints \
+    --phase=phase_2nd \
+    --dataset_name=datasets_023 \
+    --network=kobert \
+    --batch_size=32 \
+    --max_len=512 \
+    --shuffle=\
+    --num_workers=1 \
+    --pin_memory=\
+    --drop_last=\
+    --device_num=0 \
+    --epochs=50 \
+    --pre_trained=skt/kobert-base-v1 \
+    --optimizer_name=AdamW \
+    --loss_name=CrossEntropyLoss \
+    --scheduler_name=cosine_warmup \
+    --learning_rate=2e-3 \
+    --gamma=0.98 \
+    --warmup_ratio=0.1 \
+    --amp=\
+    --max_grad_norm=1 \
+    --retrain=\
+    --trained_weight=weight_path/weight.pt \
+    --start_epoch=1 \
+    --random_seed=42

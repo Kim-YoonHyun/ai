@@ -1,5 +1,22 @@
 import sys
 
+
+def see_device():
+    '''
+    선택 가능한 gpu device 표시
+    '''
+    import torch
+    if torch.cuda.is_available():
+        print('\n------------- GPU list -------------')
+        n_devices = torch.cuda.device_count()
+        for i in range(n_devices):
+            print(f'{i}: ', torch.cuda.get_device_name(i))
+        print('------------------------------------')
+    else:
+        print('No GPU available')   
+
+
+
 # gpu or cpu 선택
 def get_device(gpu_idx):
     '''

@@ -1,0 +1,7 @@
+2022-12-14 20:32:43,071 level:INFO main.py line 80 >>> dataset_info 불러오기
+2022-12-14 20:32:43,071 level:INFO main.py line 92 >>> class_info 저장
+2022-12-14 20:32:43,072 level:INFO main.py line 97 >>> 학습용 데이터 로더 생성
+2022-12-14 20:32:43,073 level:INFO main.py line 109 >>> 검증용 데이터 로더 생성
+2022-12-14 20:32:43,073 level:INFO main.py line 122 >>> gpu 선택
+2022-12-14 20:32:43,126 level:INFO main.py line 124 device: cuda
+2022-12-14 20:32:43,126 level:INFO main.py line 126 >>> model 불러오기

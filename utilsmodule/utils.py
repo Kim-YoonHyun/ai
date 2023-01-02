@@ -3,75 +3,17 @@ import pandas as pd
 import os
 import sys
 import json
-
-
-def save_csv(save_path, data_for_save, index=True, encoding='utf-8-sig'):
-    data_for_save.to_csv(save_path, index=index, encoding=encoding)
-
-
-def save_json(save_path, data_for_save, indent='\t', ensure_ascii=False):
-    '''
-    입력한 데이터를 json 화 하여 설정한 경로에 저장하는 함수
-
-    parameters
-    ----------
-    save_path: str
-        json 을 저장하고자 하는 경로 및 이름
-
-    data_for_save: json 화 가능한 data (ex: dict, list ...)
-        .json 파일로 저장할 데이터
-
-    indent: str
-        json 저장시 적용할 indent 방식. default='\t'
-    
-    ensure_ascii: bool
-        한글 저장시 깨짐 방지. default=False
-    
-    returns
-    -------
-    지정한 경로와 이름으로 json 파일 저장    
-    '''
-    with open(f'{save_path}', 'w', encoding='utf-8') as f:
-        json.dump(data_for_save, f, indent=indent, ensure_ascii=ensure_ascii)
-
-def load_json(load_path):
-    import json
-    with open(f'{load_path}', 'r', encoding='utf-8') as f:
-        json_data = json.load(f)
-    return json_data
-
+import time
 
 def save_yaml(path, obj):
     import yaml
     with open(path, 'w') as f:
         yaml.dump(obj, f, sort_keys=False)
 
-        
 def load_yaml(path):
     import yaml
     with open(path, 'r') as f:
         return yaml.load(f, Loader=yaml.FullLoader)
-
-
-def createfolder(path):
-    '''
-    입력한 경로에 파일 생성. 
-
-    parameters
-    ----------
-    path: str
-        생성할 폴더의 이름 및 경로
-
-    returns
-    -------
-    지정한 경로와 이름으로 폴더 생성.
-    폴더가 이미 존재할 경우 pass.
-    '''
-    try:
-        os.makedirs(path)
-    except FileExistsError:
-        pass
-
 
 def envs_setting(random_seed):
     '''
@@ -103,7 +45,7 @@ def envs_setting(random_seed):
     random.seed(random_seed)
 
 
-def get_logger(log_file_name, logging_level=None):
+def get_logger(get, log_file_name, time_handler=False, console_display=False, logging_level='info'):
     '''
     로거 함수
 
@@ -121,8 +63,9 @@ def get_logger(log_file_name, logging_level=None):
         로거를 적용할 수 있는 로거 변수
     '''
     import logging
+    from logging import handlers
 
-    logger = logging.getLogger()
+    logger = logging.getLogger(get)
     if logging_level == 'critical':
         logger.setLevel(logging.CRITICAL)
     if logging_level == 'error':
@@ -137,37 +80,46 @@ def get_logger(log_file_name, logging_level=None):
         logger.setLevel(logging.NOTSET)
     
     # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    formatter = logging.Formatter('%(asctime)s level:%(levelname)s %(filename)s line %(lineno)d \n%(message)s')
+    formatter = logging.Formatter('%(asctime)s level:%(levelname)s %(filename)s line %(lineno)d %(message)s')
+    if console_display:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
 
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
+    if time_handler:
+        file_handler = handlers.TimedRotatingFileHandler(
+            filename=log_file_name,        
+            when="midnight",
+            interval=1,
+            backupCount=30,
+            encoding="utf-8")
+        file_handler.suffix = '%Y%m%d'
+    else:
+        file_handler = logging.FileHandler(log_file_name)
 
-    file_handler = logging.FileHandler(f'{log_file_name}.log')
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     return logger
 
+# def make_class_dict(class_list):
+#     '''
+#     클래스 리스트를 기준으로 인코딩을 적용하여 {'클래스' : idx} 형태의 클래스 dictionary 를 만드는 함수.
 
-def make_class_dict(class_list):
-    '''
-    클래스 리스트를 기준으로 인코딩을 적용하여 {'클래스' : idx} 형태의 클래스 dictionary 를 만드는 함수.
+#     parameters
+#     ----------
+#     class_list: list, shape=(n, )
+#         클래스 값 들로 구성된 리스트.
 
-    parameters
-    ----------
-    class_list: list, shape=(n, )
-        클래스 값 들로 구성된 리스트.
+#     returns
+#     -------
+#     class_dict: dictionary
+#         {'클래스' : idx} 형태의 dictionary.
 
-    returns
-    -------
-    class_dict: dictionary
-        {'클래스' : idx} 형태의 dictionary.
-
-    '''
-    class_dict = {}
-    for idx, class_name in enumerate(class_list):
-        class_dict[class_name] = idx
-    return class_dict
+#     '''
+#     class_dict = {}
+#     for idx, class_name in enumerate(class_list):
+#         class_dict[class_name] = idx
+#     return class_dict
 
 
 def normalize_1D(ary):
@@ -198,7 +150,7 @@ def normalize_1D(ary):
     
 def get_save_path(args):
     args_setting = vars(args)
-    os.makedirs(f'{args.root_path}/{args.phase}/{args.dataset_name.split(".")[0]}_model', exist_ok=True)
+    os.makedirs(f'{args.root_path}/{args.phase}/{args.dataset_name}_model', exist_ok=True)
     condition_list = os.listdir(f'{args.root_path}/{args.phase}/{args.dataset_name.split(".")[0]}_model')
 
     if len(condition_list) == 0:
@@ -213,7 +165,7 @@ def get_save_path(args):
             exist_args_key_list = list(exist_args_setting.keys())
 
             for key, e_key in zip(args_key_list, exist_args_key_list):
-                if (key == 'epochs') or (key == 'start_epoch') or (key == 'retrain') or (key == 'trained_weight'):
+                if (key == 'epochs'):
                     continue
                 if key == e_key:
                     if args_setting[key] != exist_args_setting[e_key]:
@@ -235,11 +187,36 @@ def get_save_path(args):
 
     # args setting 저장
     os.makedirs(model_save_path, exist_ok=True)
-    save_json(save_path=f'{model_save_path}/args_setting_{condition_order}.json', data_for_save=args_setting)
+    with open(f'{model_save_path}/args_setting_{condition_order}.json', 'w', encoding='utf-8') as f:
+        json.dump(args_setting, f, indent='\t', ensure_ascii=False)
     print(f'train condition : {condition_order}')
     return model_save_path
 
 
+def see_device():
+    '''
+    선택 가능한 gpu device 표시
+    '''
+    import torch
+    if torch.cuda.is_available():
+        print('\n------------- GPU list -------------')
+        n_devices = torch.cuda.device_count()
+        for i in range(n_devices):
+            print(f'{i}: ', torch.cuda.get_device_name(i))
+        print('------------------------------------')
+    else:
+        print('No GPU available')   
 
 
+def get_error_info():
+    import traceback
+    traceback_string = traceback.format_exc()
+    return traceback_string
 
+def time_measure(start):
+    t = time.time() - start
+    h = t // 3600
+    m = (t % 3600) // 60
+    s = int(t % 60)
+    return h, m ,s
+    
