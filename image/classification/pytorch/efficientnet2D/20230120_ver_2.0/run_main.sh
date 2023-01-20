@@ -1,0 +1,24 @@
+python main.py \
+    --root_path=/home/kimyh/python/project/beef_grade \
+    --phase=phase_3th \
+    --dataset_name=beef_00 \
+    --network=efficientnet_b4 \
+    --batch_size=16 \
+    --shuffle=\
+    --num_workers=1 \
+    --pin_memory=True \
+    --drop_last=\
+    --device_num=0 \
+    --epochs=5 \
+    --optimizer_name=AdamW \
+    --loss_name=CrossEntropyLoss \
+    --scheduler_name=ExponentialLR \
+    --learning_rate=2e-3 \
+    --gamma=0.98 \
+    --warmup_ratio=0.1 \
+    --amp=\
+    --max_grad_norm=1 \
+    --retrain=\
+    --trained_weight=\
+    --start_epoch=0 \
+    --random_seed=42
