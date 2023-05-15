@@ -1,6 +1,6 @@
 python -W ignore main.py \
     --root_path=/home/kimyh/python/ai/time_series/generation/pytorch/transformer \
-    --group=C \
+    --group=G \
     --dataset_name=dataset01 \
     --column_type=S \
     --train_p=0.9 \

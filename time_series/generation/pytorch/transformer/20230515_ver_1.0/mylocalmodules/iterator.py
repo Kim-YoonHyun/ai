@@ -17,7 +17,7 @@ class Iterator():
         batch_idx_list = []
         x_list = []
         x_mark_list = []
-        for batch_idx, (x, x_mark) in enumerate(dataloader):
+        for batch_idx, (x, x_mark, _) in enumerate(dataloader):
             batch_idx_list.append(batch_idx)
             x_list.append(x)
             x_mark_list.append(x_mark)

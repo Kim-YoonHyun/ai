@@ -2,7 +2,7 @@ import sys
 import os
 
 # import shutil
-# import time
+import time
 import json
 import torch
 import argparse
@@ -22,13 +22,12 @@ from torch.utils.data.distributed import DistributedSampler
 from models import Transformer
 from utils.warm_up import LearningRateWarmUP
 
-from mylocalmodules import dataloader as dm
-# from mylocalmodules import iterator as im
-# from mylocalmodules import utils as um
+from mylocalmodules import dataloader as dam
 
 sys.path.append('/home/kimyh/python/ai')
-from sharemodule import train as tm
-from sharemodule import utils
+from sharemodule import logutils as lom
+from sharemodule import train as trm
+from sharemodule import utils as utm
 
 
 def basic_set():
@@ -65,18 +64,7 @@ def get_device(gpu_idx):
     return device
 
 
-# def split_data(data_list, train_p):
-#     total_len = len(data_list)
-#     idx_ary = np.arange(total_len)
-#     np.random.shuffle(idx_ary)
-#     # data_ary = np.array(data_list)[idx_ary]
-#     bound = round(total_len*train_p)
-#     train_name_list = data_list[:bound]
-#     test_name_list = data_list[bound:]
-#     return train_name_list, test_name_list
-
 if __name__ == "__main__":
-
     # pre-requisite
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_path')
@@ -133,52 +121,37 @@ if __name__ == "__main__":
     root_save_path = f'{args.root_path}/{args.group}/trained_model'
 
     # =========================================================================
-    # # rule 파일 불러오기
-    # rule_path = f'{args.root_path}/rule/RULE_{args.group}.csv'
-    # whole_rule_df = pd.read_csv(rule_path, encoding="cp949")
-    
-    # # rule 파일 분할
-    # ai_rule_df = whole_rule_df[whole_rule_df['ai_col'] == 1]
-    # _, _, tar_rule_df, \
-    # cond_rule_df, _ = um.get_col_rule(ai_rule_df)
+    # log 생성
+    log = lom.get_logger(
+        get='TRAIN',
+        root_path=args.root_path,
+        log_file_name=f'train_{args.group}.log',
+        time_handler=True
+    )
+    whole_start = time.time()
 
-    # if args.column_type == 'S':
-    #     column_type_rule_df = tar_rule_df[tar_rule_df['single_col'] == 1]
-    # if args.column_type == 'M':
-    #     column_type_rule_df = tar_rule_df[tar_rule_df['multi_col'] == 1]
-    #     uni_multi_class_ary = np.unique(column_type_rule_df['multi_class'].values)
     # =========================================================================
-
-    # split_df = pd.read_csv(f"{args.root_path}/{args.group}/split_data/{args.label_name}/split_data_{args.column_type}.csv")
-    # train_split_df = split_df[split_df['test'] == 0]
-    # train_col_list = train_split_df.columns.to_list()[:-1]
+    # 컬럼별 진행
     col_list = os.listdir(f'/data/ts/{args.dataset_name}/{args.group}/{args.column_type}')
     for col in col_list:
         # ==
         # if train_col != 'ECU_InjectionGasTemp':
         #     continue
         # ==
+        col_start = time.time()
+        log.info(f'\n{args.group}, {args.column_type}, {col}')
         print(args.group, args.column_type, col)
-        # train_data_list = [v for v in train_split_df[train_col] if (str(v) != "nan")]
-        # train_num = int(len(train_data_list) * args.train_p)
-        # train_name_list = train_data_list[:train_num]
-        # val_name_list = train_data_list[train_num:]
-        # if args.column_type == 'S':
-        #     input_col_list = [train_col]
-        # if args.column_type == 'M':
-        #     for uni_class in uni_multi_class_ary:
-        #         input_col_list = column_type_rule_df[column_type_rule_df['multi_class'] == uni_class]['column_name'].to_list()
-        #         if train_col in input_col_list:
-        #             break
-        # input_rule_df = column_type_rule_df[column_type_rule_df['column_name'].isin(input_col_list)]
 
-        # ==
+        # =========================================================================
+        # data 불러오기
+        print('data loading...')
         tar_train_name_list = os.listdir(f'/data/ts/{args.dataset_name}/{args.group}/{args.column_type}/{col}/train/target')
         cond_train_name_list = os.listdir(f'/data/ts/{args.dataset_name}/{args.group}/{args.column_type}/{col}/train/condition')
+        log.info(f'train data : {len(tar_train_name_list)}')
         tar_val_name_list = os.listdir(f'/data/ts/{args.dataset_name}/{args.group}/{args.column_type}/{col}/val/target')
         cond_val_name_list = os.listdir(f'/data/ts/{args.dataset_name}/{args.group}/{args.column_type}/{col}/val/condition')
+        log.info(f'val data : {len(tar_val_name_list)}')
         
-        print('data loading...')
         tar_train_df_list = []
         for tar_train_name in tar_train_name_list:
             tar_train_df = pd.read_csv(f'/data/ts/{args.dataset_name}/{args.group}/{args.column_type}/{col}/train/target/{tar_train_name}')
@@ -198,35 +171,22 @@ if __name__ == "__main__":
             cond_val_df_list.append(cond_val_df)
         
         # =========================================================================
-        print('dataloader 생성')
-        Train_Dataset = dm.AnomalyDataset(
-            mode='train',
+        # dataset 생성
+        print('dataset 생성')
+        Train_Dataset = dam.AnomalyDataset(
             tar_df_list=tar_train_df_list,
             cond_df_list=cond_train_df_list
         )
-        Val_Dataset = dm.AnomalyDataset(
-            mode='train',
+        Val_Dataset = dam.AnomalyDataset(
             tar_df_list=tar_val_df_list,
             cond_df_list=cond_val_df_list
         )
-        # Train_Dataset = dm.AnomalyDataset(
-        #     mode='train',
-        #     name_list=train_name_list[:],
-        #     input_df_list=None,
-        #     input_rule_df=input_rule_df,
-        #     cond_rule_df=cond_rule_df
-        # )
-        # Val_Dataset = dm.AnomalyDataset(
-        #     mode='train',
-        #     name_list=val_name_list[:],
-        #     input_df_list=None,
-        #     input_rule_df=input_rule_df,
-        #     cond_rule_df=cond_rule_df
-        # )
+
         # =========================================================================
         # device & model 생성
-
         device = get_device(args.device)
+        log.info(f'device: {device}')
+
         args = parameter_setup(
             args=args,
             feature_length=len(tar_train_df_list[0].columns.values),
@@ -260,7 +220,7 @@ if __name__ == "__main__":
         parameter_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
         # =========================================================================
-        # train 이터레이터 생성
+        # dataloader 생성            
         print('train dataloader 생성 중...')
         Train_Dataloader = DataLoader(
             Train_Dataset, 
@@ -271,14 +231,7 @@ if __name__ == "__main__":
             pin_memory=True, 
             sampler=Train_Sampler
         )
-        # print('train iterator 생성 중...')
-        # Train_Iterator = im.Iterator(
-        #     dataloader=Train_Dataloader,
-        #     model=model,
-        #     device=device
-        # )
-        # =========================================================================
-        # validation 이터레이터 생성
+
         print('validation dataloader 생성 중...')
         Val_Dataloader = DataLoader(
             Val_Dataset, 
@@ -289,26 +242,20 @@ if __name__ == "__main__":
             pin_memory=True, 
             sampler=Val_Sampler
         )
-        # print('validation iterator 생성 중...')
-        # Val_Iterator = im.Iterator(
-        #     dataloader=Val_Dataloader,
-        #     model=model,
-        #     device=device
-        # )
         # =========================================================================
-        # optimizer & loss function & scheduler
-        # optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
-        optimizer = tm.get_optimizer(
+        # optimizer
+        optimizer = trm.get_optimizer(
             base='torch',
             method=args.optimizer_name,
             model=model,
             learning_rate=args.learning_rate
         )
 
-        loss_function = tm.get_loss_function('MSE')
+        # loss function
+        loss_function = trm.get_loss_function('MSE')
 
-        # scheduler_cosine = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.total_iter-args.warmup_iter)
-        scheduler_cosine = tm.get_scheduler(
+        # scheduler
+        scheduler_cosine = trm.get_scheduler(
             base='torch',
             method='CosineAnnealingLR',
             optimizer=optimizer,
@@ -320,9 +267,9 @@ if __name__ == "__main__":
             target_lr=args.learning_rate,
             after_scheduler=scheduler_cosine
         )
+
         # =========================================================================
         torch.autograd.set_detect_anomaly(True)
-        
         if args.retrain:
             model.load_state_dict(torch.load(f'{args.root_path}/{args.trained_weight}'))
             print('\n>>> re-training')
@@ -331,23 +278,21 @@ if __name__ == "__main__":
 
         # =========================================================================
         # 학습 
-        condition_order = utils.get_condition_order(
+        condition_order = utm.get_condition_order(
             args_setting=args_setting,
             save_path=root_save_path,
             except_arg_list=['epochs', 'device', 'column_type', 'c_out', 'enc_in', 'dec_in']
         )
-        # purpose = 'generation'
-        # max_grad_norm = 1
+
+        # 저장경로 생성
         model_save_path = f'{root_save_path}/{condition_order}/{args.column_type}/{col}'
         os.makedirs(f'{root_save_path}/{condition_order}', exist_ok=True)
         with open(f'{root_save_path}/{condition_order}/args_setting.json', 'w', encoding='utf-8') as f:
             json.dump(args_setting, f, indent='\t', ensure_ascii=False)
         print(f'condition order: {condition_order}')
 
-
-
         # train
-        tm.train(
+        trm.train(
             model=model,
             purpose=args.purpose,
             start_epoch=args.start_epoch,
@@ -363,6 +308,10 @@ if __name__ == "__main__":
             reset_class=None,
             model_save_path=model_save_path
         )
+        col_hh, col_mm, col_ss = utm.time_measure(col_start)
+        log.info(f'{col} 학습 진행 시간: {col_hh}:{col_mm}:{col_ss}\n')
+    whole_hh, whole_mm, whole_ss = utm.time_measure(whole_start)
+    log.info(f'전체 학습 진행 시간: {whole_hh}:{whole_mm}:{whole_ss}\n')
 
         # # 변수 초기화
         # best_loss = float('inf')
