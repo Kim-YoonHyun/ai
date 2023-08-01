@@ -1,0 +1,659 @@
+import numpy as np
+import shutil
+import sys
+import copy
+import os
+import time
+import pandas as pd
+import json
+from tqdm import tqdm
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import classification_report
+import warnings
+warnings.filterwarnings('ignore')
+
+import torch
+# import torch.optim as optim
+from torch import nn, optim
+
+# from transformers import AdamW
+# from transformers.optimization import get_cosine_schedule_with_warmup
+# from transformers.optimization import get_linear_schedule_with_warmup
+
+
+from mylocalmodules import iterator as im
+
+sys.path.append('/home/kimyh/python/ai')
+from sharemodule import utils
+
+
+def see_device():
+    '''
+    선택 가능한 gpu device 표시
+    '''
+    if torch.cuda.is_available():
+        print('\n------------- GPU list -------------')
+        n_devices = torch.cuda.device_count()
+        for i in range(n_devices):
+            print(f'{i}: {torch.cuda.get_device_name(i)}')
+        print('------------------------------------')
+    else:
+        print('No GPU available')   
+
+
+# gpu or cpu 선택
+def get_device(gpu_idx):
+    '''
+    학습에 활용할 gpu 선택 (없을 시 cpu)
+
+    parameters
+    ----------
+    gpu_idx: int
+        학습에 활용할 gpu 번호(순서)
+
+    returns
+    -------
+    device: gpu or cpu
+        학습에 활용할 gpu or cpu
+    '''
+    # Arrange GPU devices starting from 0
+    # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID" 
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_idx)
+    if torch.cuda.is_available():
+        device = torch.device(f"cuda")
+    else:
+        print('No GPU available, using the CPU instead.')
+        device = torch.device("cpu")
+    return device
+
+
+def get_optimizer(base, method, model, learning_rate):
+    '''
+    학습용 optimizer 를 얻어내는 코드
+    
+    paramaters
+    ----------
+    base: str
+        기반이 되는 모듈 이름 설정. transformers or torch.
+
+    method: str
+        optimizer 의 종류 설정.
+
+    model: torch.model
+        optimizer 를 적용할 model
+    
+    learning_rate: float
+        learning rate
+
+    returns
+    -------
+    optimizer: optimizer
+        학습용 optimizer
+    '''
+    # if base == 'transformers':
+    #     if method == 'Adam':
+    #         optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    #     if method == 'AdamW':
+    #         no_decay = ['bias', 'LayerNorm.weight']
+    #         optimizer_grouped_parameters = [
+    #             {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+    #             {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    #         ]
+    #         optimizer = AdamW(optimizer_grouped_parameters, lr=learning_rate)
+
+    if base == 'torch':
+        if method == 'SGD':
+            optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+        elif method == 'Adam':
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+        elif method == 'AdamW':
+            optimizer = optim.AdamW
+        else:
+            raise ValueError('Not a valid optimizer')
+        # optimizer = optimizer(params=model.parameters(), lr=learning_rate)
+    return optimizer
+
+
+def get_loss_function(method):
+    '''
+    학습시 loss 를 계산할 loss function 을 생성하는 함수
+
+    paramerters
+    -----------
+    method: str
+        생성할 loss function 의 이름
+
+    returns
+    -------
+    loss_function
+    '''
+    if method == 'MSE':
+        loss_function = nn.MSELoss()
+    if method == 'CrossEntropyLoss':
+        loss_function = nn.CrossEntropyLoss()
+    return loss_function
+
+
+def get_scheduler(base, method, optimizer, t_total=0, warmup_ratio=1.0, gamma=0.97, args=None):
+    '''
+    학습용 scheduler 를 얻어내는 함수
+
+    parameters
+    ----------
+    base: str
+        기반이 되는 모듈 이름 설정. transformers or torch.
+
+    method: str
+        scheduler 의 종류 설정.
+
+    optimizer: optimizer
+        학습용 optimizer
+
+    t_total: float
+
+    warmup_ratio: float
+
+    gamma:float
+        learning rate 를 줄이는 비율
+    '''
+    if base == 'torch':
+        if method == 'StepLR':
+            scheduler = optim.lr_scheduler.StepLR(
+                optimizer,
+                1.0,
+                gamma=gamma
+            )
+        if method == 'ExponentialLR':
+            scheduler = optim.lr_scheduler.ExponentialLR(
+                optimizer, 
+                gamma=gamma
+            )
+        if method == 'ReduceLROnPlateau':
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, 
+                mode='min', 
+                factor=0.5, 
+                patience=20, 
+                verbose=1
+            )
+        if method == 'LambdaLR':
+            scheduler = optim.lr_scheduler.LambdaLR(
+                optimizer=optimizer,
+                lr_lambda=lambda epoch:gamma ** epoch,
+                last_epoch=-1,
+                verbose=False
+            )
+        if method == 'CosineAnnealingLR':
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, 
+                args.total_iter-args.warmup_iter
+            )
+    return scheduler
+
+
+def get_max_2nd_n_reliability(pred):
+    pred_min = np.expand_dims(np.min(pred, axis=1), axis=1)
+    pred = pred - pred_min
+    pred_max = np.expand_dims(np.max(pred, axis=1), axis=1)
+    pred = pred/pred_max
+
+    # 1순위 예측값 없애기
+    pred = np.where(pred == 1, -100, pred)
+
+    # 2순위 예측
+    max_2nd_index = np.argmax(pred, axis=1)
+
+    # 신뢰도 구하기
+    pred_reliability = (1 - np.max(pred, axis=1))*100
+    return max_2nd_index, pred_reliability
+
+
+def get_output(mode, purpose, dataloader, model, device, loss_function=None, optimizer=None, scheduler=None, max_grad_norm=None):
+    '''
+    모델에 데이터를 입력하여 설정에 따른 결과 loss 값을 얻어내는 함수
+    optimizer 유무에 따라 학습, 평가 모드로 활용 가능
+
+    parameters
+    ----------
+    mode: str ('train', 'val', 'test')
+        모델에 대해 학습 모드인지 아닌지 설정.
+
+    model: model
+        데이터를 입력할 model
+
+    device: gpu or cpu
+        학습을 진행할 장치
+
+    loss_function: loss_function
+        loss 계산에 적용할 loss function
+    
+    optimizer: optimizer
+        학습 optimizer. 지정하지 않을 경우 평가모델로 변경
+
+    schduler: scheduler
+        학습 learning rate scheduler
+    
+    max_grad_norm: int
+        학습 그래디언트 클리핑 기울기 값
+
+    returns
+    -------
+
+    '''
+    # loss, 결과 초기화
+    pred_list = []
+    b_label_list = []
+    loss_sum = 0
+    result_list = []
+
+    # classification 결과 초기화
+    if purpose == 'classification':
+        pred_label_list = []
+        pred_reliability_list = []
+        pred_2nd_label_list = []
+
+    # 이터레이터 생성
+    # 재사용이 불가능하므로 할때마다 생성 필요
+    print('iterator 생성')
+    iterator = im.Iterator(
+        dataloader=dataloader,
+        model=model,
+        device=device
+    )
+    iter_n = 0
+    
+    # 이터레이터 진행    
+    for pred, b_label in tqdm(iterator):
+        
+        # Loss 계산
+        if loss_function is not None:
+            loss = loss_function(pred, b_label)
+            loss_sum += loss.item()
+        
+        # 모드 선택
+        if mode == 'train':
+            optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+            optimizer.step()
+        elif mode in ['val', 'test']:
+            pass
+        else:
+            raise ValueError('Mode should be either train, val, or test')
+
+        # 결과값 저장
+        pred = pred.to('cpu').detach().numpy() # 메모리 해제
+        pred_list.append(pred)
+
+        # label 값 저장
+        b_label_list.append(b_label)
+        del b_label
+
+        if purpose == 'classification':
+            # 1순위 및 신뢰도
+            max_index = np.argmax(pred, axis=1)
+            pred_label_list.append(max_index)
+            
+            # 2순위 및 신뢰도
+            max_2nd_index, pred_reliability = get_max_2nd_n_reliability(pred)
+            pred_2nd_label_list.append(max_2nd_index)
+            pred_reliability_list.append(pred_reliability)
+            
+        iter_n += 1
+
+    # 결과 변수
+    try:
+        pred_ary = np.concatenate(pred_list, axis=0)
+        b_label_ary = torch.concat(b_label_list).to('cpu').detach().numpy()
+    except KeyError:
+        print('에러가 발생하였습니다.')
+        sys.exit()
+    
+    if purpose == 'classification':
+        pred_label_ary = np.concatenate(pred_label_list)
+        pred_reliability_ary = np.concatenate(pred_reliability_list)
+        pred_2nd_label_ary = np.concatenate(pred_2nd_label_list)
+        result_list.append(pred_label_ary)
+        result_list.append(pred_reliability_ary)
+        result_list.append(pred_2nd_label_ary)
+    
+    running_loss = loss_sum / iter_n
+    del iterator
+    torch.cuda.empty_cache()
+    return pred_ary, b_label_ary, running_loss, result_list
+
+
+def make_acc_report(uni_class_list, true, pred, reset_class=False):
+    '''
+    sklearn 의 classification_report 의 결과에 confusion matrix 를 더한 
+    json 형태의 결과 데이터를 얻어내는 함수.
+
+    parameters
+    ----------
+    uni_class_list: str list
+        결과를 계산할 class list
+
+    true: int list
+        예측 결과 계산에 활용할 true 라벨 데이터
+
+    pred: int list
+        예측 결과 계산에 활용할 predict 라벨 데이터
+
+    returns
+    -------
+    acc_report: json
+        각 class 별 정확도 및 정확도 matrix 가 포함된 json 형태의 결과값
+    '''
+    try:
+        true_label_list = true
+        pred_label_list = pred
+    except TypeError:
+        encoder = LabelEncoder()
+        true_label_list = encoder.fit_transform(true) 
+        pred_label_list = encoder.fit_transform(pred) 
+
+    # matrix
+    matrix = np.zeros([len(uni_class_list), len(uni_class_list)])
+    for t, o in zip(true_label_list, pred_label_list):
+        matrix[t][o] += 1
+    
+    if reset_class:
+        # 각 결과의 유니크 값만 정리
+        unique_true_label_list = np.unique(true_label_list)
+        unique_pred_label_list = np.unique(pred_label_list)
+
+        # 합집합
+        unique_label_list = list(set(unique_true_label_list).union(set(unique_pred_label_list)))
+
+        # 존재하는 라벨값으로만 재구성
+        uni_class_ary = np.array(uni_class_list)
+        uni_class_list = uni_class_ary[unique_label_list].tolist()
+
+        # 존재하는 라벨값으로만 matrix 재구성    
+        matrix = np.array(matrix)
+        matrix = matrix[unique_label_list].T
+        matrix = matrix[unique_label_list].T
+
+    # 결과 json 생성
+    acc_report = classification_report(
+        true_label_list, 
+        pred_label_list, 
+        output_dict=True, 
+        target_names=uni_class_list
+    )
+    acc_report['matrix'] = matrix.tolist()
+
+    return acc_report, uni_class_list
+
+
+def make_confusion_matrix(uni_class_list, true, pred, reset_class):
+    '''
+    make_acc_json 함수의 결과 데이터로 pandas DataFrame 기반의 result table 을 만드는 함수.
+    경로 설정시 .csv 형태로 저장
+
+    parameters
+    ----------
+    uni_class_list: str list
+        결과를 계산할 class list
+
+    true: int list
+        예측 결과 계산에 활용할 true 라벨 데이터
+
+    pred: int list
+        예측 결과 계산에 활용할 predict 라벨 데이터
+
+    save: str
+        result table 을 저장할 경로 및 이름. default=None (결과저장 X)
+
+    returns
+    -------
+    confusion_matrix: pandas dataframe, csv
+        학습 결과를 가독성이 좋은 형태로 변경한 dataframe. 결과 저장시 csv 로 저장됨.
+    '''
+    accuracy_list = []
+    precision_list = []
+    recall_list = []
+    f1_list = []
+    support_list = []
+    
+    acc_report, uni_class_list = make_acc_report(
+        uni_class_list=uni_class_list, 
+        true=true,
+        pred=pred,
+        reset_class=reset_class
+    )
+    for e, accs in acc_report.items():
+        if e == 'accuracy':
+            accuracy_list[0] = accs
+            break
+        accuracy_list.append(None)
+        precision_list.append(accs['precision'])
+        recall_list.append(accs['recall'])
+        f1_list.append(accs['f1-score'])
+        support_list.append(accs['support'])
+
+    matrix = acc_report['matrix']
+    df1 = pd.DataFrame(matrix, index=uni_class_list, columns=uni_class_list)
+    df2 = pd.DataFrame([accuracy_list, precision_list, recall_list, f1_list, support_list], columns=uni_class_list, index=['accuracy', 'precision', 'recall', 'f1', 'support']).T
+    confusion_matrix = pd.concat([df1, df2], axis=1)
+
+    return confusion_matrix
+
+
+def train(model, purpose, start_epoch, epochs, train_dataloader, validation_dataloader, 
+          uni_class_list, device, loss_function, optimizer, scheduler, max_grad_norm, reset_class, model_save_path):
+    '''
+    학습을 진행하여 최적의 학습된 모델 및 학습 이력을 얻어내는 함수
+
+    parameters
+    -------------------------------------------------------------
+    model
+        학습을 진행할 model
+    
+    start_epoch: int
+        학습 시작 epoch. re-traine 시 의미를 가짐.
+
+    epochs: int
+        학습 epochs 수
+
+    train_dataloader
+        학습용 train data 로 이루어진 dataloader
+    
+    validation_dataloader
+        학습시 확인에 활용할 validation data로 이루어진 dataloader
+
+    uni_class_list: str list, shape=(n, )
+        데이터의 고유 클래스 list
+
+    device
+        학습 진행시 활용할 device (cpu or gpu)
+
+    loss_function: nn.criterion
+        학습용 loss_function 
+
+    optimizer 
+        학습용 optimizer
+
+    scheduler
+        learning rate scheduler
+
+    max_grad_norm: float        
+        그래디언트 클리핑 기울기값
+
+    model_save_path: str
+        최종 결과를 저장할 폴더 경로
+
+    returns
+    -------
+    best_val_pred_label_ary
+        입력된 데이터에 대한 결과(예측) 값 array
+    true_label_ary: np.array
+        실제 라벨값 array
+    
+    model: model
+        학습된 model
+
+    history: json dict
+        학습 이력을 저장한 json 형식의 dictionary
+    '''
+
+    # 변수 초기화
+    # best_acc = 0
+    best_loss = float('inf')
+    history = {'best':{'epoch':0, 'loss':0}}
+
+    # 학습 진행
+    start = time.time()
+    for epoch in range(start_epoch, epochs):
+        history[f'epoch {epoch+1}'] = {'train_loss':0, 'val_loss':0}
+        print(f'======== {epoch+1:2d}/{epochs} ========')
+        print("lr: ", optimizer.param_groups[0]['lr'])
+
+        # train
+        model.train()
+        _, _, train_loss, _ = get_output(
+            mode='train',
+            purpose=purpose,
+            dataloader=train_dataloader,
+            model=model,
+            device=device, 
+            loss_function=loss_function,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            max_grad_norm=max_grad_norm
+        )
+        print(f"epoch {epoch+1} train loss {train_loss}")
+
+        # validation
+        model.eval()
+        with torch.no_grad():
+            _, _, val_loss, _ = get_output(
+                mode='val',
+                model=model, 
+                purpose=purpose,
+                dataloader=validation_dataloader,
+                device=device,
+                loss_function=loss_function,
+            )
+            if purpose == 'classification':
+                val_true_label_ary = np.reshape(val_true_label_ary, (-1))
+                val_pred_label_ary = np.reshape(val_pred_label_ary, (-1))
+                val_confusion_matrix = make_confusion_matrix(
+                    uni_class_list=uni_class_list,
+                    true=val_true_label_ary,
+                    pred=val_pred_label_ary,
+                    reset_class=reset_class
+                )
+                val_acc = val_confusion_matrix['accuracy'].values[0]
+        try:
+            scheduler.step() 
+        except TypeError:
+            scheduler.step(epoch)
+
+        # 학습 이력 저장
+        history[f'epoch {epoch+1}']['train_loss'] = train_loss
+        history[f'epoch {epoch+1}']['val_loss'] = val_loss
+
+        # 최적의 모델 변수 저장        
+        if val_loss <= best_loss:
+            best_loss = val_loss
+            best_epoch = epoch + 1
+            history['best']['epoch'] = best_epoch
+            history['best']['loss'] = best_loss
+            best_model_wts = copy.deepcopy(model.state_dict())
+
+            save_dic = {
+                "epoch" : epoch,
+                "train_loss" : train_loss,
+                "val_loss" : val_loss,
+                "state_dict" : best_model_wts,
+                # "hyper_parameters" : save_parameter,
+                # "parameter_num" : parameter_count
+                "hyper_parameters" : None,
+                "parameter_num" : None
+            }
+
+            # best result save
+            best_model_name = f'epoch{str(best_epoch).zfill(4)}'
+            os.makedirs(f'{model_save_path}/{best_model_name}', exist_ok=True)
+            torch.save(model.state_dict(), f'{model_save_path}/{best_model_name}/weight.pt')
+            
+            # 분류
+            if purpose == 'classification':
+                best_acc = val_acc
+                best_val_confusion_matrix = val_confusion_matrix
+                best_val_pred_label_ary = val_pred_label_ary
+                history['best']['acc'] = best_acc
+                best_val_confusion_matrix.to_csv(f'{model_save_path}/{best_model_name}/confusion_matrix.csv', encoding='utf-8-sig')
+
+            # 이전의 최적 모델 삭제
+            for i in range(epoch, 0, -1):
+                pre_best_model_name = f'epoch{str(i).zfill(4)}'
+                try:
+                    shutil.rmtree(f'{model_save_path}/{pre_best_model_name}')
+                    print(f'이전 모델 {pre_best_model_name} 삭제')
+                except FileNotFoundError:
+                    pass
+
+        # history 저장
+        with open(f'{model_save_path}/train_history.json', 'w', encoding='utf-8') as f:
+            json.dump(history, f, indent='\t', ensure_ascii=False)
+
+        print(f'epoch {epoch+1} validation loss {val_loss}\n')
+        if purpose == 'classification':
+            print(val_confusion_matrix)
+
+        h, m, s = utils.time_measure(start)
+        print(f'걸린시간: {h}시간 {m}분 {s}초\n')
+
+    # last result save
+    os.makedirs(f'{model_save_path}/epoch{str(epoch + 1).zfill(4)}', exist_ok=True)
+    torch.save(model.state_dict(), f'{model_save_path}/epoch{str(epoch + 1).zfill(4)}/weight.pt')
+
+    if purpose == 'classification':
+        val_confusion_matrix.to_csv(f'{model_save_path}/epoch{str(epoch + 1).zfill(4)}/confusion_matrix.csv', encoding='utf-8-sig')
+
+    # 최적의 학습모델 불러오기
+    print(f'best: {best_epoch}')
+    model.load_state_dict(best_model_wts)
+
+    return save_dic
+
+
+def model_test(model, test_dataloader, device, loss_function):
+    '''
+    학습을 진행하여 최적의 학습된 모델 및 학습 이력을 얻어내는 함수
+
+    parameters
+    -------------------------------------------------------------
+    model
+        학습을 진행할 model
+    
+    test_dataloader
+        학습용 test data 로 이루어진 dataloader
+    
+    device
+        학습 진행시 활용할 device (cpu or gpu)
+
+    loss_function: nn.criterion
+        학습용 loss_function 
+
+    -------
+    pred_label_ary: int list, shape=(n, )
+        입력된 데이터에 대한 결과(예측) 값 array
+
+    true_label_ary
+        실제 라벨 array
+    '''
+    # validation
+    model.eval()
+    with torch.no_grad():
+        pred_label_ary, pred_reliability_ary, pred_2nd_label_ary, true_label_ary, _ = get_output(
+            mode='test',
+            model=model, 
+            dataloader=test_dataloader,
+            device=device,
+            loss_function=loss_function,
+        )
+
+    return pred_label_ary, pred_reliability_ary, pred_2nd_label_ary, true_label_ary

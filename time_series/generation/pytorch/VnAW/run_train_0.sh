@@ -1,0 +1,26 @@
+python -W ignore main.py \
+    --root_path=/home/kimyh/python/project/transformer \
+    --group=A \
+    --dataset_name=dataset_02 \
+    --purpose=predict \
+    --device_num=0 \
+    --epochs=100 \
+    --batch_size=32 \
+    --train_p=0.9 \
+    --max_grad_norm=10 \
+    --loss_function_name=CrossEntropyLoss \
+    --optimizer_name=SGD \
+    --learning_rate=0.5 \
+    --scheduler_name=StepLR \
+    --gamma=0.98 \
+    --max_length=602 \
+    --num_embeddings=25000 \
+    --head_num=8 \
+    --d_model=512 \
+    --layer_num=6 \
+    --dropout_p=0.2 \
+    --shuffle= \
+    --drop_last= \
+    --num_workers=5 \
+    --pin_memory=True
+    
