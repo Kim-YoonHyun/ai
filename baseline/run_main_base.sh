@@ -1,0 +1,18 @@
+python main.py \
+    --root_path=/home/kimyh/python/project/datom \
+    --phase=phase_test \
+    --dataset_name=dataset_00 \
+    --purpose=classification \
+    --device_num=0 \
+    --epochs=15 \
+    --batch_size=16 \
+    --max_grad_norm=1 \
+    --loss_function_name=CrossEntropyLoss \
+    --optimizer_name=AdamW \
+    --learning_rate=2e-3 \
+    --scheduler_name=cosine_warmup \
+    --gamma=0.98 \
+    --shuffle=\
+    --drop_last=\
+    --num_workers=1 \
+    --pin_memory=\
