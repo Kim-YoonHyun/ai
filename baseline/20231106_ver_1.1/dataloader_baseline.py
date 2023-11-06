@@ -1,0 +1,39 @@
+import sys
+import os
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
+
+
+class InputDataset(Dataset):
+    def __init__(self, input1, input2):
+        self.input1 = input1
+        self.input2 = input2
+        
+    def __len__(self):
+        return len(self.input1)
+
+    def __getitem__(self, idx):
+        x = self.input1[idx]
+        y = self.input2[idx]
+        return x, y
+
+
+def get_dataloader(input1, input2, batch_size, shuffle=False, 
+                   drop_last=False, num_workers=1, pin_memory=True):
+    
+    dataset = InputDataset(
+        input1=input1, 
+        input2=input2
+    )
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        drop_last=drop_last, 
+        num_workers=num_workers, 
+        pin_memory=pin_memory
+    )
+    return dataloader
+    
+    
+

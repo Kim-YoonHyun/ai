@@ -1,0 +1,24 @@
+python main.py \
+    --root_path=/home/kimyh/python/project/kca/KoBERT-NER \
+    --phase=phase_00 \
+    --dataset_name=kca_dataset_00 \
+    --task=naver-ner \
+    --device_num=0 \
+    --epochs=50 \
+    --batch_size=64 \
+    --write_pred=True \
+    --model_type=kobert \
+    --random_seed=42 \
+    --max_seq_len=512 \
+    --learning_rate=5e-5 \
+    --weight_decay=0.0 \
+    --gradient_accumulation_steps=1 \
+    --adam_epsilon=1e-8 \
+    --max_grad_norm=1.0 \
+    --max_steps=-1 \
+    --warmup_steps=0 \
+    --logging_steps=1000 \
+    --save_steps=1000 \
+    --do_train=True \
+    --do_eval=True \
+    --no_cuda=\
