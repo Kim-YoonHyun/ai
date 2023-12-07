@@ -1,42 +1,3 @@
-# document
-*.pdf
-*.pptx
-*.csv
-*.CSV
-*.xlsx
-*.xls
-*.txt
-
-# weight
-*.h5
-*.bin
-*.pt
-*.ckpt
-*.model
-
-# image
-*.jpg
-*.JPG
-*.png
-*.PNG
-*.jpeg
-*.JPEG
-
-# compressor
-*.zip
-*.tar
-*.tar.gz
-*.gz
-
-# data
-*.db
-*.exe
-*.geojson
-*.json
-*.jsonl
-*.yaml
-*.whl
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -161,8 +122,15 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-.dmypy.json
-dmypy.json
 
-# Pyre type checker
-.pyre/
+####################
+.vscode/
+.idea/
+model/
+
+.DS_Store
+
+preds/
+
+sample_pred_out.txt
+cached*
