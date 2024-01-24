@@ -37,8 +37,8 @@ class EncoderLayer(nn.Module):
             mask=enc_self_mask
         )
         mha_x = self.dropout(mha_x)
-        
-        # add
+    
+        # residual
         x = x + mha_x
         
         # normalize
@@ -53,7 +53,7 @@ class EncoderLayer(nn.Module):
         
         # normalize
         x = self.norm2(x)
-
+        
         return x, attention_score
 
 
@@ -75,9 +75,9 @@ class Encoder(nn.Module):
         
     def forward(self, x, enc_self_mask):
         attention_score_list = []
+        
         for encoder_layer in self.encoder_layer_list:
-            x, attention_score = encoder_layer(x, enc_self_mask)
-            
+            x, attention_score = encoder_layer(x, enc_self_mask)            
             attention_score_list.append(attention_score)
         
         return x, attention_score_list

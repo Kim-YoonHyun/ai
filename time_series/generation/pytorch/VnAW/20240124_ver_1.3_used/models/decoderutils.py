@@ -39,19 +39,23 @@ class DecoderLayer(nn.Module):
             mask=look_ahead_mask
         )
         mha1_y = self.dropout(mha1_y)
+        
+        # residual
         y = y + mha1_y
         
         # normalize
         y = self.norm1(y)
-        
+
         # encoder-decoder attention
         mha2_y, _ = self.multi_head_attention2(
             y, encoder_result, encoder_result,
             mask=encoder_decoder_mask
         )
         mha2_y = self.dropout(mha2_y)
+        
+        # residual
         y = y + mha2_y
-
+        
         # normalize
         y = self.norm2(y)
         
@@ -89,5 +93,5 @@ class Decoder(nn.Module):
                 encoder_result=encoder_result, 
                 look_ahead_mask=look_ahead_mask, 
                 encoder_decoder_mask=encoder_decoder_mask
-            )
+            )    
         return y

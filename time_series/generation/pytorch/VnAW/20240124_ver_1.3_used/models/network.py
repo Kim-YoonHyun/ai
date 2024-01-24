@@ -56,7 +56,7 @@ class VnAW(nn.Module):
             dropout_p=dropout_p
             
         )
-        self.norm2 = nn.LayerNorm(d_model)
+        # self.norm2 = nn.LayerNorm(d_model)
         self.linear = nn.Linear(d_model, output_length, bias=True)
     
     
@@ -74,7 +74,6 @@ class VnAW(nn.Module):
             enc_self_mask=enc_self_mask
         )
         
-        
         # # normalize
         # enc_out = self.norm1(enc_out)
         
@@ -88,12 +87,19 @@ class VnAW(nn.Module):
             look_ahead_mask=look_ahead_mask,
             encoder_decoder_mask=enc_dec_mask,
         )
+
         
         # # normalize
         # dec_out = self.norm2(dec_out)
         
         # projection
         result = self.linear(dec_out)
+        # ==
+        # sys.path.append('/home/kimyh/python')
+        # from sharemodule import utils
+        # utils.save_tensor(result, mode=1)
+        # sys.exit()
+        # ==
         return result
         
         

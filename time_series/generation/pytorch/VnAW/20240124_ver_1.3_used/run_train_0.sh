@@ -1,7 +1,7 @@
 python -W ignore main.py \
     --root_path=/home/kimyh/python/project/bscr \
     --phase=phase_test \
-    --dataset_name=dataset_test \
+    --dataset_name=dataset_for_network_analy \
     --purpose=generation \
     --device_num=1 \
     --epochs=100 \

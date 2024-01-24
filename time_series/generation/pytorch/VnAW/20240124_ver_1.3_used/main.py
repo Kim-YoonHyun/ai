@@ -15,7 +15,8 @@ import pandas as pd
 from torch.utils.data import DataLoader, SequentialSampler
 
 from models import network as net
-from utils.warm_up import LearningRateWarmUP
+from models import warm_up as wum
+# from utils.warm_up import LearningRateWarmUP
 
 from mylocalmodules import dataloader as dam
 
@@ -305,7 +306,7 @@ if __name__ == "__main__":
         total_iter=total_iter,
         warmup_iter=warmup_iter
     )
-    scheduler = LearningRateWarmUP(
+    scheduler = wum.LearningRateWarmUP(
         optimizer=optimizer,
         warmup_iteration=warmup_iter,
         target_lr=learning_rate,

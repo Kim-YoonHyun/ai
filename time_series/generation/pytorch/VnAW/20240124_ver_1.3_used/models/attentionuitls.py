@@ -19,6 +19,7 @@ class Attention(nn.Module):
         
         # get attention score        
         w = torch.matmul(query, key_t)
+        
         attention_score = w / math.sqrt(d_k)
         attention_score.masked_fill_(mask, -np.inf)
         
@@ -66,8 +67,11 @@ class MultiHeadAttention(nn.Module):
             value,
             mask
         )
-        out = out.view(bs, max_len, d_model)
         
+        out = out.transpose(1, 2)
+        out = out.reshape(bs, max_len, d_model)
+         
         # linear
         out = self.out_linear(out)
+        
         return out, attn
