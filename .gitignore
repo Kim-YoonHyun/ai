@@ -21,6 +21,7 @@
 *.PNG
 *.jpeg
 *.JPEG
+*.gif
 
 # compressor
 *.zip
