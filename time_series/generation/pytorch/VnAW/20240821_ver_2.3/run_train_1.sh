@@ -1,0 +1,35 @@
+python -W ignore model_trainer.py \
+    --root_path=/home/kimyh/python/project/VnAW \
+    --root_dataset_path=/data/busmate \
+    --phase=phase_1st \
+    --dataset_name=dataset_03/diesel/DPF \
+    --reduce_num=0 \
+    --scale=fixed-max \
+    --x_p=0 \
+    --purpose=generation \
+    --device_num=1 \
+    --epochs=50 \
+    --batch_size=4 \
+    --max_grad_norm=1 \
+    --dropout_p=0.1 \
+    --loss_function_name=MSE \
+    --optimizer_name=Adam \
+    --scheduler_name=CosineAnnealingLR \
+    --learning_rate=0.001 \
+    --random_seed=42 \
+    --shuffle= \
+    --drop_last= \
+    --num_workers=5 \
+    --pin_memory=True \
+    --pre_trained=None \
+    --d_model=512 \
+    --d_ff=1064 \
+    --n_heads=2 \
+    --embed_type=pure \
+    --projection_type=res_conv \
+    --temporal_type=timeF \
+    --enc_layer_num=4 \
+    --dec_layer_num=0 \
+    --enc_activation=relu \
+    --dec_activation=gelu
+
