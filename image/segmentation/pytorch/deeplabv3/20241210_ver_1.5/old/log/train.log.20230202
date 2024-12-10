@@ -1,0 +1,70 @@
+2023-02-02 00:31:46,432 level:INFO main.py line 191 >>> 학습완료. 소요시간: 28.0시간 9.0분 16초
+2023-02-02 15:53:23,236 level:INFO main.py line 84 >>> dataset_info 불러오기
+2023-02-02 15:53:23,237 level:INFO main.py line 96 >>> class_info 저장
+2023-02-02 15:53:23,237 level:INFO main.py line 101 >>> 학습용 데이터 로더 생성
+2023-02-02 15:53:28,490 level:INFO main.py line 113 >>> 검증용 데이터 로더 생성
+2023-02-02 15:53:29,309 level:INFO main.py line 126 >>> gpu 선택
+2023-02-02 15:53:29,346 level:INFO main.py line 128 device: cuda
+2023-02-02 15:53:29,346 level:INFO main.py line 130 >>> model 불러오기
+2023-02-02 15:53:30,706 level:INFO main.py line 139 >>> optimizer 생성
+2023-02-02 15:53:30,707 level:INFO main.py line 147 >>> loss function 생성
+2023-02-02 15:53:30,707 level:INFO main.py line 150 >>> scheduler 생성
+2023-02-02 15:53:30,707 level:INFO main.py line 172 >>> 학습 시작
+2023-02-02 15:55:27,747 level:INFO main.py line 84 >>> dataset_info 불러오기
+2023-02-02 15:55:27,747 level:INFO main.py line 96 >>> class_info 저장
+2023-02-02 15:55:27,747 level:INFO main.py line 101 >>> 학습용 데이터 로더 생성
+2023-02-02 15:55:33,149 level:INFO main.py line 113 >>> 검증용 데이터 로더 생성
+2023-02-02 15:55:33,983 level:INFO main.py line 126 >>> gpu 선택
+2023-02-02 15:55:34,037 level:INFO main.py line 128 device: cuda
+2023-02-02 15:55:34,037 level:INFO main.py line 130 >>> model 불러오기
+2023-02-02 15:55:35,302 level:INFO main.py line 139 >>> optimizer 생성
+2023-02-02 15:55:35,303 level:INFO main.py line 147 >>> loss function 생성
+2023-02-02 15:55:35,304 level:INFO main.py line 150 >>> scheduler 생성
+2023-02-02 15:55:35,304 level:INFO main.py line 172 >>> 학습 시작
+2023-02-02 15:55:44,624 level:INFO main.py line 84 >>> dataset_info 불러오기
+2023-02-02 15:55:44,624 level:INFO main.py line 96 >>> class_info 저장
+2023-02-02 15:55:44,624 level:INFO main.py line 101 >>> 학습용 데이터 로더 생성
+2023-02-02 15:55:52,343 level:INFO main.py line 113 >>> 검증용 데이터 로더 생성
+2023-02-02 15:55:53,227 level:INFO main.py line 126 >>> gpu 선택
+2023-02-02 15:55:53,272 level:INFO main.py line 128 device: cuda
+2023-02-02 15:55:53,272 level:INFO main.py line 130 >>> model 불러오기
+2023-02-02 15:55:54,584 level:INFO main.py line 139 >>> optimizer 생성
+2023-02-02 15:55:54,585 level:INFO main.py line 147 >>> loss function 생성
+2023-02-02 15:55:54,585 level:INFO main.py line 150 >>> scheduler 생성
+2023-02-02 15:55:54,585 level:INFO main.py line 172 >>> 학습 시작
+2023-02-02 15:56:14,328 level:INFO main.py line 84 >>> dataset_info 불러오기
+2023-02-02 15:56:14,328 level:INFO main.py line 96 >>> class_info 저장
+2023-02-02 15:56:14,328 level:INFO main.py line 101 >>> 학습용 데이터 로더 생성
+2023-02-02 15:56:21,416 level:INFO main.py line 113 >>> 검증용 데이터 로더 생성
+2023-02-02 15:56:22,175 level:INFO main.py line 126 >>> gpu 선택
+2023-02-02 15:56:22,236 level:INFO main.py line 128 device: cuda
+2023-02-02 15:56:22,236 level:INFO main.py line 130 >>> model 불러오기
+2023-02-02 15:56:23,643 level:INFO main.py line 139 >>> optimizer 생성
+2023-02-02 15:56:23,644 level:INFO main.py line 147 >>> loss function 생성
+2023-02-02 15:56:23,644 level:INFO main.py line 150 >>> scheduler 생성
+2023-02-02 15:56:23,644 level:INFO main.py line 172 >>> 학습 시작
+2023-02-02 16:03:18,569 level:INFO main.py line 84 >>> dataset_info 불러오기
+2023-02-02 16:03:18,569 level:INFO main.py line 96 >>> class_info 저장
+2023-02-02 16:03:18,570 level:INFO main.py line 101 >>> 학습용 데이터 로더 생성
+2023-02-02 16:03:25,440 level:INFO main.py line 113 >>> 검증용 데이터 로더 생성
+2023-02-02 16:03:26,183 level:INFO main.py line 126 >>> gpu 선택
+2023-02-02 16:03:26,240 level:INFO main.py line 128 device: cuda
+2023-02-02 16:03:26,240 level:INFO main.py line 130 >>> model 불러오기
+2023-02-02 16:03:27,504 level:INFO main.py line 139 >>> optimizer 생성
+2023-02-02 16:03:27,505 level:INFO main.py line 147 >>> loss function 생성
+2023-02-02 16:03:27,505 level:INFO main.py line 150 >>> scheduler 생성
+2023-02-02 16:03:27,505 level:INFO main.py line 172 >>> 학습 시작
+2023-02-02 16:03:31,930 level:INFO main.py line 84 >>> dataset_info 불러오기
+2023-02-02 16:03:47,099 level:INFO main.py line 84 >>> dataset_info 불러오기
+2023-02-02 16:04:14,470 level:INFO main.py line 84 >>> dataset_info 불러오기
+2023-02-02 16:04:14,471 level:INFO main.py line 96 >>> class_info 저장
+2023-02-02 16:04:14,471 level:INFO main.py line 101 >>> 학습용 데이터 로더 생성
+2023-02-02 16:04:20,009 level:INFO main.py line 113 >>> 검증용 데이터 로더 생성
+2023-02-02 16:04:20,860 level:INFO main.py line 126 >>> gpu 선택
+2023-02-02 16:04:20,912 level:INFO main.py line 128 device: cuda
+2023-02-02 16:04:20,912 level:INFO main.py line 130 >>> model 불러오기
+2023-02-02 16:04:22,287 level:INFO main.py line 139 >>> optimizer 생성
+2023-02-02 16:04:22,288 level:INFO main.py line 147 >>> loss function 생성
+2023-02-02 16:04:22,288 level:INFO main.py line 150 >>> scheduler 생성
+2023-02-02 16:04:22,288 level:INFO main.py line 172 >>> 학습 시작
+2023-02-02 21:49:33,874 level:INFO main.py line 191 >>> 학습완료. 소요시간: 5.0시간 45.0분 19초
