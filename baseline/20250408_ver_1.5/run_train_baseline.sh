@@ -1,0 +1,25 @@
+python -W ignore model_trainer.py \
+    --root_path=/home/kimyh/python/project/? \
+    --root_dataset_path=/data/? \
+    --phase=phase_test \
+    --dataset_name=dataset_00 \
+    --reduce_num=0 \
+    --scale=fixed-max \
+    --purpose=generation \
+    --device_num=0 \
+    --epochs=50 \
+    --batch_size=4 \
+    --max_grad_norm=1 \
+    --dropout_p=0.1 \
+    --loss_function_name=MSE \
+    --optimizer_name=Adam \
+    --scheduler_name=CosineAnnealingLR \
+    --learning_rate=0.001 \
+    --random_seed=42 \
+    --train_p=0.9 \
+    --sampler_name=SequentialSampler \
+    --shuffle= \
+    --drop_last= \
+    --num_workers=5 \
+    --pin_memory=True \
+    --pre_trained=
